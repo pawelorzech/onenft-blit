@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+import {Base64} from "./lib/Base64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IDayRenderer} from "./IDayRenderer.sol";
 import {DataStore} from "./DataStore.sol";
@@ -188,31 +188,70 @@ contract BlitRenderer is IDayRenderer {
     }
 
     /// @notice One rect for the ground, one per horizontal run of any other color.
-    /// Rows are built apart and joined once each, so the growing string is copied
-    /// 32 times, not once per rect.
-    function svgOf(bytes memory data) public pure returns (string memory) {
+    /// Written in Yul into one 64 kB buffer: no bounds checks, no intermediate
+    /// copies. Worst case 1024 rects of about 56 bytes, well inside the buffer.
+    function svgOf(bytes memory data) public pure returns (string memory out) {
         string[4] memory colors = colorsOf(data);
         uint256 ground = groundOf(data);
-        bytes memory out = abi.encodePacked(
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="512" height="512" shape-rendering="crispEdges"><rect width="32" height="32" fill="',
-            colors[ground],
-            '"/>'
-        );
-        for (uint256 y = 0; y < 32; y++) {
-            bytes memory row;
-            uint256 x = 0;
-            while (x < 32) {
-                uint256 c = pixel(data, y * 32 + x);
-                uint256 w = 1;
-                while (x + w < 32 && pixel(data, y * 32 + x + w) == c) w++;
-                if (c != ground) {
-                    row = abi.encodePacked(row, '<rect x="', x.toString(), '" y="', y.toString(), '" width="', w.toString(), '" height="1" fill="', colors[c], '"/>');
-                }
-                x += w;
+        out = new string(65536);
+        assembly {
+            let dst := add(out, 32)
+            let px := add(data, 44) // first pixel byte
+            // 7-byte color words, left aligned
+            let c0 := mload(add(mload(colors), 32))
+            let c1 := mload(add(mload(add(colors, 32)), 32))
+            let c2 := mload(add(mload(add(colors, 64)), 32))
+            let c3 := mload(add(mload(add(colors, 96)), 32))
+            function color(i, a, b, c, d) -> w {
+                switch i
+                case 0 { w := a }
+                case 1 { w := b }
+                case 2 { w := c }
+                default { w := d }
             }
-            out = abi.encodePacked(out, row);
+            function pixel(p, i) -> v {
+                v := and(shr(sub(6, mul(2, and(i, 3))), byte(0, mload(add(p, shr(2, i))))), 3)
+            }
+            function num(d, n, v) -> n2 {
+                if gt(v, 9) {
+                    mstore8(add(d, n), add(48, div(v, 10)))
+                    n := add(n, 1)
+                }
+                mstore8(add(d, n), add(48, mod(v, 10)))
+                n2 := add(n, 1)
+            }
+            let n := 0
+            mstore(add(dst, n), "<svg xmlns=\"http://www.w3.org/20") n := add(n, 32)
+            mstore(add(dst, n), "00/svg\" viewBox=\"0 0 32 32\" widt") n := add(n, 32)
+            mstore(add(dst, n), "h=\"512\" height=\"512\" shape-rende") n := add(n, 32)
+            mstore(add(dst, n), "ring=\"crispEdges\"><rect width=\"3") n := add(n, 32)
+            mstore(add(dst, n), "2\" height=\"32\" fill=\"") n := add(n, 21)
+            mstore(add(dst, n), color(ground, c0, c1, c2, c3)) n := add(n, 7)
+            mstore(add(dst, n), "\"/>") n := add(n, 3)
+            for { let y := 0 } lt(y, 32) { y := add(y, 1) } {
+                let x := 0
+                for {} lt(x, 32) {} {
+                    let i := add(mul(y, 32), x)
+                    let c := pixel(px, i)
+                    let w := 1
+                    for {} and(lt(add(x, w), 32), eq(pixel(px, add(i, w)), c)) {} { w := add(w, 1) }
+                    if iszero(eq(c, ground)) {
+                        mstore(add(dst, n), "<rect x=\"") n := add(n, 9)
+                        n := num(dst, n, x)
+                        mstore(add(dst, n), "\" y=\"") n := add(n, 5)
+                        n := num(dst, n, y)
+                        mstore(add(dst, n), "\" width=\"") n := add(n, 9)
+                        n := num(dst, n, w)
+                        mstore(add(dst, n), "\" height=\"1\" fill=\"") n := add(n, 19)
+                        mstore(add(dst, n), color(c, c0, c1, c2, c3)) n := add(n, 7)
+                        mstore(add(dst, n), "\"/>") n := add(n, 3)
+                    }
+                    x := add(x, w)
+                }
+            }
+            mstore(add(dst, n), "</svg>") n := add(n, 6)
+            mstore(out, n)
         }
-        return string(abi.encodePacked(out, "</svg>"));
     }
 
     // ---- IDayRenderer ----
