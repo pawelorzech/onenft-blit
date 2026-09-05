@@ -13,6 +13,10 @@ forge verify-contract <renderer> src/BlitRenderer.sol:BlitRenderer --verifier so
   --constructor-args $(cast abi-encode "c(uint256,address,address,address,address)" <startEpoch> <originalsA> <originalsB> <meta> <siblings>)
 ```
 
+## After every deploy
+
+`contracts/check.sh sepolia|mainnet` compares every data store's code with the fixture blob byte for byte and the renderer's `svg()` for an early, a late and a far day with the TypeScript output. The constructors only check blob lengths, so two same-size blobs in the wrong order would pass them; this script is what catches it. Run it before `wire.sh`.
+
 ## Change the drawing
 
 Edit `src/blit.ts`, run `bun test`, `bun run contracts/fixtures.ts`, port the change to `BlitRenderer.sol`, run `forge test`. Deploy a new renderer with a variant of the deploy script (data stores can be reused: pass the existing addresses) and switch with `setRenderer` from the author wallet. Claimed days keep their renderer.
