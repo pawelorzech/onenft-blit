@@ -1,6 +1,6 @@
 # blit.onenft.click
 
-One Blitmap remix a day, computed on chain from the clock of the Base chain. A sister project of onenft.click (`~/Programowanie/onenft`), built from its code on 2026-09-05. Operational identifiers that should not be public live in `CLAUDE.local.md` (gitignored).
+One Blitmap remix a day, computed on chain from the clock of the Base chain. One of the daily collections listed at onenft.click (hub repo `~/Programowanie/onenft-hub`); the knot lives at knot.onenft.click (`~/Programowanie/onenft`), built from its code on 2026-09-05. Operational identifiers that should not be public live in `CLAUDE.local.md` (gitignored).
 
 ## What this is
 
