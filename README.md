@@ -2,7 +2,7 @@
 
 One Blitmap remix a day, computed on chain from the clock of the Base chain. Every day at midnight UTC the contract takes the composition of one Blitmap original and the palette of another. Nobody chooses the pair and nobody can delay it. A day nobody claims stays empty forever.
 
-Live: **https://blit.onenft.click** · A sister of [onenft.click](https://onenft.click)
+Live: **https://blit.onenft.click** · Contract: [`0x27E8…588B` on Base](https://basescan.org/address/0x27E85c52527D3955AF013664eb0AED799555588B) · A sister of [onenft.click](https://onenft.click)
 
 ## How it works
 
