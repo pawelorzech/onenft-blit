@@ -188,6 +188,8 @@ contract BlitRenderer is IDayRenderer {
     }
 
     /// @notice One rect for the ground, one per horizontal run of any other color.
+    /// Rows are built apart and joined once each, so the growing string is copied
+    /// 32 times, not once per rect.
     function svgOf(bytes memory data) public pure returns (string memory) {
         string[4] memory colors = colorsOf(data);
         uint256 ground = groundOf(data);
@@ -197,16 +199,18 @@ contract BlitRenderer is IDayRenderer {
             '"/>'
         );
         for (uint256 y = 0; y < 32; y++) {
+            bytes memory row;
             uint256 x = 0;
             while (x < 32) {
                 uint256 c = pixel(data, y * 32 + x);
                 uint256 w = 1;
                 while (x + w < 32 && pixel(data, y * 32 + x + w) == c) w++;
                 if (c != ground) {
-                    out = abi.encodePacked(out, '<rect x="', x.toString(), '" y="', y.toString(), '" width="', w.toString(), '" height="1" fill="', colors[c], '"/>');
+                    row = abi.encodePacked(row, '<rect x="', x.toString(), '" y="', y.toString(), '" width="', w.toString(), '" height="1" fill="', colors[c], '"/>');
                 }
                 x += w;
             }
+            out = abi.encodePacked(out, row);
         }
         return string(abi.encodePacked(out, "</svg>"));
     }
