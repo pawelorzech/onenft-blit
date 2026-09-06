@@ -4,17 +4,22 @@
 # renderer's svg() for a late day with the TypeScript output. Same-size blobs in
 # the wrong order would pass the constructor's length checks; this catches it.
 set -euo pipefail
+source "$(dirname "$0")/../scripts/operator-safe.sh"
 NET="${1:?sepolia|mainnet}"
 case "$NET" in sepolia) RPC=https://sepolia.base.org;; mainnet) RPC=https://mainnet.base.org;; *) exit 1;; esac
 cd "$(dirname "$0")/.."
+CHECK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/onenft-check.XXXXXXXX")
+trap 'rm -rf "$CHECK_DIR"' EXIT
+CHECK_SVG="$CHECK_DIR/render.svg"
 D="$HOME/.config/onenft-blit/deploy-$NET.json"; F=contracts/test/fixtures/blit_data.json; ok=1
+bun "$OPERATOR_TOOL" deployment-addresses "$D"
 for k in originalsA originalsB meta siblings; do
   want="0x00$(jq -r ".$k" $F | cut -c3-)"; got=$(cast code "$(jq -r ".$k" "$D")" --rpc-url "$RPC")
   if [ "$want" = "$got" ]; then echo "$k: on-chain bytes == fixture"; else echo "$k: MISMATCH"; ok=0; fi
 done
-START=$(jq -r .startEpoch "$D"); R=$(jq -r .BlitRenderer "$D")
+START=$(jq -r .startEpoch "$D"); R=$(operator_json_address "$D" BlitRenderer)
 for day in 1 252 9900; do
-  cast call "$R" "svg(uint256)(string)" $((START + day - 1)) --rpc-url "$RPC" > /tmp/check-blit.svg
-  if bun -e 'import { renderDay } from "./src/blit.ts"; let s=(await Bun.file("/tmp/check-blit.svg").text()).trim(); if(s.startsWith("\"")) s=JSON.parse(s); const d=Number(process.argv[1]); process.exit(s===renderDay(d, BigInt(process.argv[2])+BigInt(d-1)).svg?0:1)' "$day" "$START"; then echo "day $day: svg == TypeScript"; else echo "day $day: MISMATCH"; ok=0; fi
+  cast call "$R" "svg(uint256)(string)" $((START + day - 1)) --rpc-url "$RPC" > "$CHECK_SVG"
+  if bun -e 'import { renderDay } from "./src/blit.ts"; let s=(await Bun.file(process.argv[process.argv.length-1]).text()).trim(); if(s.startsWith("\"")) s=JSON.parse(s); const d=Number(process.argv[1]); process.exit(s===renderDay(d, BigInt(process.argv[2])+BigInt(d-1)).svg?0:1)' "$day" "$START" "$CHECK_SVG"; then echo "day $day: svg == TypeScript"; else echo "day $day: MISMATCH"; ok=0; fi
 done
 [ $ok = 1 ] && echo "all good" || { echo "PROBLEM"; exit 1; }
