@@ -8,6 +8,7 @@ import { dayByNumber, dateOf, type Day } from "./chain.ts";
 import type { ChainState, ChainStatus } from "./contract.ts";
 import { SITE, REPO, PARENT, FILE_PREFIX, BLITMAP, layout, topBar, label, shortAddr, isAuthor, explorer, opensea, openseaCollection, chainName, num, plural, stripSize, esc, siblingLink, afterMidnight, traitList, whoBlock, sizePicker, downloadBar, connectScript, downloadScript, nameHeading, staleNote, dayState, type Names, NO_NAMES } from "./site.ts";
 import type { Address } from "viem";
+import { holderFacts } from "./facts.ts";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -145,6 +146,8 @@ export function holderPage(who: Address, handle: string, today: Day, chain: Chai
   const rawName = names.get(who.toLowerCase()) ?? shortAddr(who);
   const name = esc(rawName);
   const author = isAuthor(chain, who);
+  const facts = holderFacts(who, today, chain);
+  const factList = facts.length ? `<ul class="facts" aria-label="About these days">${facts.map((f) => `<li><span class="fig syne">${esc(f.figure)}</span><span class="lab">${esc(f.label)}</span></li>`).join("")}</ul>` : "";
   const rows = mine.map((n) => {
     const d = dayByNumber(n)!;
     const kk = blitFor(d.epoch);
@@ -165,6 +168,7 @@ ${downloadBar(n, kk.palette.bg)}
 ${topBar(rawName)}
 ${staleNote(status)}
 <div><h2 class="syne">${nameHeading(rawName)}</h2><p class="lead" style="margin-top:8px">${author ? "The author. Every tenth day up to day 1000 lands here." : `${mine.length} ${plural(mine.length, "day", "days")} of ${today.n}.`}${handle.toLowerCase() !== who.toLowerCase() ? ` <span class="small">${shortAddr(who)}</span>` : ""}</p></div>
+${factList}
 ${whoBlock(chain)}
 ${rows.length ? `${sizePicker()}\n<div>${rows.join("\n")}</div>` : `<p>No days here yet. <a href="/">Today's blit</a> may still be available.</p>`}
 <nav class="nav small" style="padding-top:20px;border-top:1px solid var(--line)" aria-label="Wallet links"><a href="${explorer(chain.chainId)}/address/${who}">Basescan</a><a href="${chain.chainId === 8453 ? `https://opensea.io/${who}` : `https://testnets.opensea.io/${who}`}">OpenSea</a><a href="/api/holder/${who}">JSON</a><a href="https://${PARENT}/wallet/${who}">This wallet on ${PARENT}</a></nav>
