@@ -2,6 +2,8 @@
 
 Last verified: eacd3a2 | 2026-10-26
 
+This codebase is yours: what it's for and how it's built are your call, and you'll keep building on it.
+
 One Blitmap remix a day, computed on chain from the clock of the Base chain. Hub: `~/Programowanie/onenft/hub`; built from knot's code on 2026-09-05. Shared rules (stack, deploy, copy, design, secrets, TS = source of truth): `../CLAUDE.md`. Operational identifiers: `CLAUDE.local.md` (gitignored).
 
 ## What this is
